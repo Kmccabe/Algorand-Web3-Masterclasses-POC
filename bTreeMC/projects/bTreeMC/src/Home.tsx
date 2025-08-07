@@ -9,6 +9,10 @@ const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
   const [openDemoModal, setOpenDemoModal] = useState<boolean>(false)
   const [showBuildingMessage, setShowBuildingMessage] = useState<boolean>(false)
+
+  // NEW: transient toast for visitor pass
+  const [showVisitorPassMessage, setShowVisitorPassMessage] = useState<boolean>(false)
+
   const { activeAddress } = useWallet()
 
   const toggleWalletModal = () => {
@@ -24,6 +28,12 @@ const Home: React.FC<HomeProps> = () => {
     setTimeout(() => {
       setShowBuildingMessage(false)
     }, 3000)
+  }
+
+  // NEW: handler for Visitor Pass button
+  const handleGetVisitorPass = () => {
+    setShowVisitorPassMessage(true)
+    setTimeout(() => setShowVisitorPassMessage(false), 2500)
   }
 
   return (
@@ -44,6 +54,20 @@ const Home: React.FC<HomeProps> = () => {
               Recruit participants, execute transactions, and visualize results with ease.
               Store your experiments on the Algorand blockchain, ensuring transparency and security.
             </p>
+
+            {/* NEW: Get Visitor Pass button */}
+            <button
+              type="button"
+              data-test-id="get-visitor-pass"
+              onClick={handleGetVisitorPass}
+              className="mt-6 inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium text-white
+                         bg-gradient-to-r from-blue-600 to-purple-600 shadow-md hover:shadow-lg
+                         hover:from-blue-700 hover:to-purple-700 transition-all focus:outline-none focus:ring-2
+                         focus:ring-offset-2 focus:ring-purple-500"
+              aria-label="Get Visitor Pass"
+            >
+              Get Visitor Pass
+            </button>
           </div>
 
           {/* Action Buttons Section */}
@@ -69,7 +93,7 @@ const Home: React.FC<HomeProps> = () => {
               <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-2xl">💸</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Subscribe Today</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Join Today</h3>
               <p className="text-gray-600 text-sm mb-4">Join Economists on Algorand</p>
               <button
                 data-test-id="transactions-demo"
@@ -110,6 +134,22 @@ const Home: React.FC<HomeProps> = () => {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">Success!</h3>
                 <p className="text-gray-600">Going to the Building Page</p>
+              </div>
+            </div>
+          )}
+
+          {/* NEW: transient toast for visitor pass */}
+          {showVisitorPassMessage && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+            >
+              <div className="bg-white border border-indigo-100 rounded-lg shadow-lg px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm">🎟️</div>
+                  <span className="text-gray-800 font-semibold">Soon you will get a pass</span>
+                </div>
               </div>
             </div>
           )}
