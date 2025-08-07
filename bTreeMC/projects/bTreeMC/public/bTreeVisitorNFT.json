@@ -1,0 +1,11 @@
+{
+  "name": "bTreeVisitorNFT",
+  "description": "This NFT represents a visitor to the bTreeMC project.",
+  "image": "https://gateway.pinata.cloud/ipfs/bafybeieec2u6ujivg4tmfxnq3hnfkacabzxo4ff7dna3eedmrziisyhzwi",
+  "unitName": "bTreeVisitor",
+  "properties": {
+    "AccessLevel": "Visitor",
+    "Project": "bTreeMC"
+  }
+}
+
