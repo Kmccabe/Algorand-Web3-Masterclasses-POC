@@ -2,6 +2,7 @@ import { useWallet } from '@txnlab/use-wallet-react'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import Transact from './components/Transact'
+import NFTmint from './components/NFTmint' // ✅ NEW
 
 interface HomeProps {}
 
@@ -10,8 +11,9 @@ const Home: React.FC<HomeProps> = () => {
   const [openDemoModal, setOpenDemoModal] = useState<boolean>(false)
   const [showBuildingMessage, setShowBuildingMessage] = useState<boolean>(false)
 
-  // NEW: transient toast for visitor pass
+  // Visitor Pass UX
   const [showVisitorPassMessage, setShowVisitorPassMessage] = useState<boolean>(false)
+  const [openNftModal, setOpenNftModal] = useState<boolean>(false) // ✅ NEW
 
   const { activeAddress } = useWallet()
 
@@ -30,10 +32,18 @@ const Home: React.FC<HomeProps> = () => {
     }, 3000)
   }
 
-  // NEW: handler for Visitor Pass button
+  // Open the NFT mint modal (or prompt wallet connect first)
   const handleGetVisitorPass = () => {
+    // nice little toast for instant feedback
     setShowVisitorPassMessage(true)
-    setTimeout(() => setShowVisitorPassMessage(false), 2500)
+    setTimeout(() => setShowVisitorPassMessage(false), 1500)
+
+    if (!activeAddress) {
+      // if wallet not connected, prompt connect first
+      setOpenWalletModal(true)
+      return
+    }
+    setOpenNftModal(true) // ✅ open NFTmint modal
   }
 
   return (
@@ -55,7 +65,7 @@ const Home: React.FC<HomeProps> = () => {
               Store your experiments on the Algorand blockchain, ensuring transparency and security.
             </p>
 
-            {/* NEW: Get Visitor Pass button */}
+            {/* Get Visitor Pass button */}
             <button
               type="button"
               data-test-id="get-visitor-pass"
@@ -138,7 +148,7 @@ const Home: React.FC<HomeProps> = () => {
             </div>
           )}
 
-          {/* NEW: transient toast for visitor pass */}
+          {/* Transient toast for visitor pass */}
           {showVisitorPassMessage && (
             <div
               role="status"
@@ -148,7 +158,7 @@ const Home: React.FC<HomeProps> = () => {
               <div className="bg-white border border-indigo-100 rounded-lg shadow-lg px-5 py-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm">🎟️</div>
-                  <span className="text-gray-800 font-semibold">Soon you will get a pass</span>
+                  <span className="text-gray-800 font-semibold">Opening Visitor Pass…</span>
                 </div>
               </div>
             </div>
@@ -172,6 +182,7 @@ const Home: React.FC<HomeProps> = () => {
         {/* Modals */}
         <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
         <Transact openModal={openDemoModal} setModalState={setOpenDemoModal} />
+        <NFTmint openModal={openNftModal} setModalState={setOpenNftModal} /> {/* ✅ NEW */}
       </div>
     </div>
   )
