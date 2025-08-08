@@ -1,14 +1,59 @@
 // src/components/NFTmint.tsx
+import React, { useMemo, useState } from 'react'
 import { AlgorandClient } from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet-react'
 import { useSnackbar } from 'notistack'
-import React, { useMemo, useState } from 'react'
 import { sha512_256 } from 'js-sha512'
 import { getAlgodConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs'
 
 interface NFTmintProps {
   openModal: boolean
   setModalState: (value: boolean) => void
+}
+
+const MAX_ASA_URL_BYTES = 96
+
+// Count bytes (Algorand enforces byte length, not string length)
+const byteLen = (s: string) => new TextEncoder().encode(s).length
+
+// Normalize to ARC-3-friendly, short URL:
+//  - Convert common HTTP(S) gateways to ipfs://
+//  - Append #arc3 if missing
+//  - If still too long and ends with /metadata.json, drop that suffix
+const toArc3Url96 = (raw: string) => {
+  let url = raw.trim()
+
+  // Normalize well-known gateways
+  url = url
+    .replace(/^https?:\/\/gateway\.pinata\.cloud\/ipfs\//i, 'ipfs://')
+    .replace(/^https?:\/\/(?:[^/]+\.)?mypinata\.cloud\/ipfs\//i, 'ipfs://')
+    .replace(/^https?:\/\/ipfs\.io\/ipfs\//i, 'ipfs://')
+    .replace(/^https?:\/\/cloudflare-ipfs\.com\/ipfs\//i, 'ipfs://')
+
+  // If someone pasted a directory CID followed by a file, keep it;
+  // we'll conditionally trim metadata.json below.
+
+  // Add ARC-3 tag if missing
+  if (!url.includes('#arc3')) url += '#arc3'
+
+  // If too long, try removing `/metadata.json` right before the hash/end
+  if (byteLen(url) > MAX_ASA_URL_BYTES) {
+    url = url.replace(/\/metadata\.json(?=(#|$))/i, '')
+  }
+
+  return url
+}
+
+// Basic sanity check for inputs we accept
+const looksLikeIpfsOrHttp = (value: string) => {
+  if (!value) return false
+  if (value.startsWith('ipfs://')) return true
+  try {
+    const u = new URL(value)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 const NFTmint: React.FC<NFTmintProps> = ({ openModal, setModalState }) => {
@@ -23,62 +68,57 @@ const NFTmint: React.FC<NFTmintProps> = ({ openModal, setModalState }) => {
 
   const closeModal = () => setModalState(false)
 
-  const ensureArc3Url = (url: string) => {
-    // ARC-3 convention suggests appending #arc3 to the ASA URL.
-    // We'll add it if it's not already present to be beginner-friendly.
-    if (!url) return url
-    return url.includes('#arc3') ? url : `${url}#arc3`
-  }
-
-  const isValidUrl = (value: string) => {
-    try {
-      // Allow ipfs:// and http(s)://. Users said they host via Pinata (http(s)/ipfs gateway).
-      if (value.startsWith('ipfs://')) return true
-      const u = new URL(value)
-      return ['http:', 'https:'].includes(u.protocol)
-    } catch {
-      return false
-    }
-  }
-
-  const canMint = metadataUrlInput.trim().length > 0 && isValidUrl(metadataUrlInput.trim())
+  const raw = metadataUrlInput.trim()
+  const normalized = raw ? toArc3Url96(raw) : ''
+  const normalizedBytes = normalized ? byteLen(normalized) : 0
+  const canMint =
+    !!activeAddress &&
+    !!transactionSigner &&
+    looksLikeIpfsOrHttp(raw) &&
+    normalizedBytes > 0 &&
+    normalizedBytes <= MAX_ASA_URL_BYTES
 
   const handleMint = async () => {
     if (!transactionSigner || !activeAddress) {
       enqueueSnackbar('Please connect your wallet first.', { variant: 'warning' })
       return
     }
-    if (!canMint) {
+    if (!looksLikeIpfsOrHttp(raw)) {
       enqueueSnackbar('Please provide a valid metadata URL (ipfs:// or https://).', { variant: 'warning' })
       return
     }
 
-    setLoading(true)
-    const rawUrl = metadataUrlInput.trim()
-    const metadataUrl = ensureArc3Url(rawUrl)
+    const metadataUrl = toArc3Url96(raw)
+    const len = byteLen(metadataUrl)
+    if (len > MAX_ASA_URL_BYTES) {
+      enqueueSnackbar(
+        `ASA URL is too long (${len}/${MAX_ASA_URL_BYTES}). Use a shorter ipfs:// CID or pin the JSON file directly.`,
+        { variant: 'error' }
+      )
+      return
+    }
 
+    setLoading(true)
     try {
       enqueueSnackbar('Submitting NFT create transaction…', { variant: 'info' })
 
-      // Compute SHA-512/256 hash bytes of the provided URL (beginner-friendly as requested).
-      // Note: ARC-3 typically hashes the JSON metadata CONTENT, not the URL.
-      // We follow your requested logic and hash the URL string.
-      const hashBytes = new Uint8Array(sha512_256.array(rawUrl))
+      // NOTE: For strict ARC-3, metadataHash should be the SHA-512/256 of the *file contents*.
+      // This demo follows your requested logic: hash the *input URL string* for simplicity.
+      const hashBytes = new Uint8Array(sha512_256.array(raw))
 
       const result = await algorand.send.assetCreate({
         sender: activeAddress,
         signer: transactionSigner,
-        total: 1n,                 // NFT: total supply 1
-        decimals: 0,               // NFT: 0 decimals
+        total: 1n,
+        decimals: 0,
         assetName: 'bTree Visitor Ticket',
         unitName: 'MTK',
-        url: metadataUrl,          // ARC-3 URL (with #arc3 appended if missing)
-        metadataHash: hashBytes,   // 32-byte SHA-512/256 digest
+        url: metadataUrl,        // guaranteed ≤ 96 bytes
+        metadataHash: hashBytes, // 32-byte SHA-512/256 digest of the *URL string*
         defaultFrozen: false,
       })
 
-      // Show tx id; asset id is available after confirmation, which algokit handles under the hood.
-      enqueueSnackbar(`NFT create transaction sent! TxID: ${result.txIds[0]}`, { variant: 'success' })
+      enqueueSnackbar(`NFT mint submitted! TxID: ${result.txIds[0]}`, { variant: 'success' })
       setMetadataUrlInput('')
       closeModal()
     } catch (e: any) {
@@ -100,7 +140,7 @@ const NFTmint: React.FC<NFTmintProps> = ({ openModal, setModalState }) => {
       <form method="dialog" className="modal-box">
         <h3 className="font-bold text-lg">Mint your bTree Visitor NFT</h3>
         <p className="text-sm text-slate-600 mt-2">
-          Paste the URL to your metadata (from Pinata/IPFS). We’ll use your connected wallet to mint a 1/1 NFT.
+          Paste the URL to your metadata (Pinata/IPFS). We’ll normalize it to <code>ipfs://…#arc3</code> and keep it within Algorand’s 96‑byte limit.
         </p>
 
         <div className="mt-4">
@@ -116,9 +156,21 @@ const NFTmint: React.FC<NFTmintProps> = ({ openModal, setModalState }) => {
             onChange={(e) => setMetadataUrlInput(e.target.value)}
             data-test-id="metadata-url"
           />
-          <div className="mt-2 text-xs text-slate-500">
-            Tip: If you’re using ARC‑3 metadata, the URL usually ends with <code>#arc3</code>. We’ll add it for you if missing.
-          </div>
+
+          {/* Preview & length */}
+          {raw && (
+            <div className="mt-2 text-xs text-slate-600">
+              <div className="truncate">
+                <span className="font-semibold">Normalized:</span> <code>{normalized || '—'}</code>
+              </div>
+              <div>
+                Length: <span className={`${normalizedBytes <= MAX_ASA_URL_BYTES ? 'text-green-600' : 'text-red-600'}`}>
+                  {normalizedBytes}
+                </span>
+                /{MAX_ASA_URL_BYTES} bytes
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="modal-action">
