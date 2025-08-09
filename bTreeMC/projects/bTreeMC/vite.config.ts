@@ -12,4 +12,8 @@ export default defineConfig({
       },
     }),
   ],
+  define: {
+    global: 'globalThis',  // Polyfill Node's `global`
+    'process.env': {},     // Polyfill empty process.env
+  },
 })

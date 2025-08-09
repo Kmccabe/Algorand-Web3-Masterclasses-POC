@@ -1,50 +1,28 @@
 // src/App.tsx
+import { NetworkId, WalletId, WalletManager, WalletProvider } from '@txnlab/use-wallet-react'
 import { SnackbarProvider } from 'notistack'
-import { WalletProvider, type SupportedWallet } from '@txnlab/use-wallet-react'
 import Home from './Home'
-import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
-const isLocalnet = import.meta.env.VITE_ALGOD_NETWORK === 'localnet'
+// Determine network from env (.env.local for localhost → TestNet)
+const network = (import.meta.env.VITE_ALGOD_NETWORK || 'testnet') as 'localnet' | 'testnet' | 'mainnet'
+const isLocalnet = network === 'localnet'
 
-let supportedWallets: SupportedWallet[] = []
-if (isLocalnet) {
-  const kmd = getKmdConfigFromViteEnvironment()
-  supportedWallets = [
-    {
-      id: 'kmd',
-      name: 'KMD',
-      installURL: '',
-      icon: '', // optional
-      providerId: 'kmd',
-      options: {
-        kmdServer: kmd.server,
-        kmdPort: kmd.port,
-        kmdToken: kmd.token,
-        wallet: kmd.wallet,
-        password: kmd.password
-      }
-    }
-  ]
-} else {
-  // Optional: add wallets for TestNet/MainNet
-  supportedWallets = [
-    { id: 'pera', name: 'Pera Wallet', providerId: 'pera' },
-    { id: 'lute', name: 'Lute', providerId: 'lute' }
-  ]
-}
+// Wallets to enable
+// - Localnet: only KMD
+// - TestNet/MainNet: Pera, Lute, Defly
+const wallets = isLocalnet ? [WalletId.KMD] : [WalletId.PERA, WalletId.LUTE, WalletId.DEFLY]
+
+// Construct the WalletManager
+const walletManager = new WalletManager({
+  wallets,
+  defaultNetwork: network === 'mainnet' ? NetworkId.MAINNET : network === 'localnet' ? NetworkId.LOCALNET : NetworkId.TESTNET,
+  // Using built-in network configs for TestNet/MainNet
+})
 
 export default function App() {
-  const algod = getAlgodConfigFromViteEnvironment()
   return (
     <SnackbarProvider maxSnack={3}>
-      <WalletProvider
-        algod={{
-          server: algod.server,
-          port: algod.port,
-          token: algod.token
-        }}
-        supportedWallets={supportedWallets}
-      >
+      <WalletProvider manager={walletManager}>
         <Home />
       </WalletProvider>
     </SnackbarProvider>
