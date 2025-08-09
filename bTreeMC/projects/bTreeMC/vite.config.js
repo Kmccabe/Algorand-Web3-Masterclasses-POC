@@ -1,5 +1,8 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+// Optional: keep if you need Buffer, etc.
+// import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 function validateViteEnv() {
   return {
@@ -13,11 +16,21 @@ function validateViteEnv() {
       const get = (k) => (process.env[k] ?? '').trim()
       const miss = (k) => get(k) === ''
 
-      const required = ['VITE_ALGOD_NETWORK', 'VITE_ALGOD_SERVER', 'VITE_INDEXER_SERVER']
-      const missing = required.filter(miss)
+      // Always need to know which network we’re targeting
+      const missing = []
+      if (miss('VITE_ALGOD_NETWORK')) missing.push('VITE_ALGOD_NETWORK')
 
+      // If user explicitly sets a custom Indexer, require its server
+      // (port/token can be empty for public nodes)
+      if (get('VITE_INDEXER_SERVER') && miss('VITE_INDEXER_SERVER')) {
+        missing.push('VITE_INDEXER_SERVER')
+      }
+
+      // If deploying LOCALNET (rare on Vercel), enforce KMD vars
       if (get('VITE_ALGOD_NETWORK') === 'localnet') {
-        missing.push(...['VITE_KMD_SERVER', 'VITE_KMD_PORT', 'VITE_KMD_TOKEN'].filter(miss))
+        if (miss('VITE_KMD_SERVER')) missing.push('VITE_KMD_SERVER')
+        if (miss('VITE_KMD_PORT')) missing.push('VITE_KMD_PORT')
+        if (miss('VITE_KMD_TOKEN')) missing.push('VITE_KMD_TOKEN')
       }
 
       if (!missing.length) return
@@ -33,5 +46,13 @@ function validateViteEnv() {
 }
 
 export default defineConfig({
-  plugins: [react(), validateViteEnv()],
+  plugins: [
+    react(),
+    // nodePolyfills({ globals: { Buffer: true } }),
+    validateViteEnv(),
+  ],
+  define: {
+    global: 'globalThis', // Polyfill Node's `global`
+    'process.env': {},    // Polyfill empty process.env
+  },
 })
