@@ -1,41 +1,47 @@
 import { AlgoViteClientConfig, AlgoViteKMDConfig } from '../../interfaces/network'
 
-export function getAlgodConfigFromViteEnvironment(): AlgoViteClientConfig {
-  if (!import.meta.env.VITE_ALGOD_SERVER) {
-    throw new Error('Attempt to get default algod configuration without specifying VITE_ALGOD_SERVER in the environment variables')
-  }
+const getEnv = (key: string) =>
+  (import.meta.env[key as keyof ImportMetaEnv] as string | undefined)?.toString().trim() ?? ''
 
-  return {
-    server: import.meta.env.VITE_ALGOD_SERVER,
-    port: import.meta.env.VITE_ALGOD_PORT,
-    token: import.meta.env.VITE_ALGOD_TOKEN,
-    network: import.meta.env.VITE_ALGOD_NETWORK,
-  }
+const req = (key: string) => {
+  const v = getEnv(key)
+  if (!v) throw new Error(`Missing required env var: ${key}`)
+  return v
+}
+
+const normalizeServer = (url: string) => url.replace(/\/+$/, '')
+
+export function getAlgodConfigFromViteEnvironment(): AlgoViteClientConfig {
+  const network = req('VITE_ALGOD_NETWORK') // 'localnet' | 'testnet' | 'mainnet'
+  const server = normalizeServer(req('VITE_ALGOD_SERVER'))
+
+  const port = getEnv('VITE_ALGOD_PORT') || undefined
+  const token = getEnv('VITE_ALGOD_TOKEN') || undefined
+
+  return { server, port, token, network }
 }
 
 export function getIndexerConfigFromViteEnvironment(): AlgoViteClientConfig {
-  if (!import.meta.env.VITE_INDEXER_SERVER) {
-    throw new Error('Attempt to get default algod configuration without specifying VITE_INDEXER_SERVER in the environment variables')
-  }
+  const server = normalizeServer(req('VITE_INDEXER_SERVER'))
+  const port = getEnv('VITE_INDEXER_PORT') || undefined
+  const token = getEnv('VITE_INDEXER_TOKEN') || undefined
+  const network = req('VITE_ALGOD_NETWORK')
 
-  return {
-    server: import.meta.env.VITE_INDEXER_SERVER,
-    port: import.meta.env.VITE_INDEXER_PORT,
-    token: import.meta.env.VITE_INDEXER_TOKEN,
-    network: import.meta.env.VITE_ALGOD_NETWORK,
-  }
+  return { server, port, token, network }
 }
 
 export function getKmdConfigFromViteEnvironment(): AlgoViteKMDConfig {
-  if (!import.meta.env.VITE_KMD_SERVER) {
-    throw new Error('Attempt to get default kmd configuration without specifying VITE_KMD_SERVER in the environment variables')
+  const network = req('VITE_ALGOD_NETWORK')
+
+  if (network !== 'localnet') {
+    throw new Error('KMD configuration requested but VITE_ALGOD_NETWORK is not "localnet"')
   }
 
-  return {
-    server: import.meta.env.VITE_KMD_SERVER,
-    port: import.meta.env.VITE_KMD_PORT,
-    token: import.meta.env.VITE_KMD_TOKEN,
-    wallet: import.meta.env.VITE_KMD_WALLET,
-    password: import.meta.env.VITE_KMD_PASSWORD,
-  }
+  const server = normalizeServer(req('VITE_KMD_SERVER'))
+  const port = req('VITE_KMD_PORT')
+  const token = req('VITE_KMD_TOKEN')
+  const wallet = getEnv('VITE_KMD_WALLET') || 'unencrypted-default-wallet'
+  const password = getEnv('VITE_KMD_PASSWORD') || ''
+
+  return { server, port, token, wallet, password }
 }
