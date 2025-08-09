@@ -43,3 +43,4 @@ export function getKmdConfigFromViteEnvironment(): AlgoViteKMDConfig {
 
   return { server, port, token, wallet, password }
 }
+// Validate environment variables for Vite
