@@ -1,4 +1,3 @@
-import { SupportedWallet, WalletId, WalletManager, WalletProvider } from '@txnlab/use-wallet-react'
 // src/App.tsx
 import { SnackbarProvider } from 'notistack'
 import { WalletProvider, type SupportedWallet } from '@txnlab/use-wallet-react'
@@ -21,14 +20,19 @@ if (isLocalnet) {
         kmdServer: kmd.server,
         kmdPort: kmd.port,
         kmdToken: kmd.token,
-        wallet: kmd.wallet, // name
+        wallet: kmd.wallet,
         password: kmd.password
       }
     }
   ]
+} else {
+  // Optional: add wallets for TestNet/MainNet
+  supportedWallets = [
+    { id: 'pera', name: 'Pera Wallet', providerId: 'pera' },
+    { id: 'lute', name: 'Lute', providerId: 'lute' }
+  ]
 }
 
-// On TestNet/MainNet you’ll rely on Pera/Lute/etc. (no KMD in the browser)
 export default function App() {
   const algod = getAlgodConfigFromViteEnvironment()
   return (
