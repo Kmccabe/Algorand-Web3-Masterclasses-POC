@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import Transact from './components/Transact'
 import NFTmint from './components/NFTmint' // ✅ NEW
+import NetworkStatus from './components/NetworkStatus' // ✅ NEW
 
 interface HomeProps {}
 
@@ -49,6 +50,12 @@ const Home: React.FC<HomeProps> = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-16">
+
+        {/* ✅ Network status chip in top-right corner */}
+        <div className="flex justify-end mb-4">
+          <NetworkStatus />
+        </div>
+
         <div className="max-w-4xl mx-auto text-center">
           {/* Header Section */}
           <div className="mb-12">
