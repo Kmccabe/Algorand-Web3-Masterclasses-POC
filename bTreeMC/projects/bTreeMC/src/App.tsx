@@ -1,54 +1,46 @@
 import { SupportedWallet, WalletId, WalletManager, WalletProvider } from '@txnlab/use-wallet-react'
+// src/App.tsx
 import { SnackbarProvider } from 'notistack'
+import { WalletProvider, type SupportedWallet } from '@txnlab/use-wallet-react'
 import Home from './Home'
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
-let supportedWallets: SupportedWallet[]
-if (import.meta.env.VITE_ALGOD_NETWORK === 'localnet') {
-  const kmdConfig = getKmdConfigFromViteEnvironment()
+const isLocalnet = import.meta.env.VITE_ALGOD_NETWORK === 'localnet'
+
+let supportedWallets: SupportedWallet[] = []
+if (isLocalnet) {
+  const kmd = getKmdConfigFromViteEnvironment()
   supportedWallets = [
     {
-      id: WalletId.KMD,
+      id: 'kmd',
+      name: 'KMD',
+      installURL: '',
+      icon: '', // optional
+      providerId: 'kmd',
       options: {
-        baseServer: kmdConfig.server,
-        token: String(kmdConfig.token),
-        port: String(kmdConfig.port),
-      },
-    },
-  ]
-} else {
-  supportedWallets = [
-    { id: WalletId.DEFLY },
-    { id: WalletId.PERA },
-    { id: WalletId.EXODUS },
-    // If you are interested in WalletConnect v2 provider
-    // refer to https://github.com/TxnLab/use-wallet for detailed integration instructions
+        kmdServer: kmd.server,
+        kmdPort: kmd.port,
+        kmdToken: kmd.token,
+        wallet: kmd.wallet, // name
+        password: kmd.password
+      }
+    }
   ]
 }
 
+// On TestNet/MainNet you’ll rely on Pera/Lute/etc. (no KMD in the browser)
 export default function App() {
-  const algodConfig = getAlgodConfigFromViteEnvironment()
-
-  const walletManager = new WalletManager({
-    wallets: supportedWallets,
-    defaultNetwork: algodConfig.network,
-    networks: {
-      [algodConfig.network]: {
-        algod: {
-          baseServer: algodConfig.server,
-          port: algodConfig.port,
-          token: String(algodConfig.token),
-        },
-      },
-    },
-    options: {
-      resetNetwork: true,
-    },
-  })
-
+  const algod = getAlgodConfigFromViteEnvironment()
   return (
     <SnackbarProvider maxSnack={3}>
-      <WalletProvider manager={walletManager}>
+      <WalletProvider
+        algod={{
+          server: algod.server,
+          port: algod.port,
+          token: algod.token
+        }}
+        supportedWallets={supportedWallets}
+      >
         <Home />
       </WalletProvider>
     </SnackbarProvider>
