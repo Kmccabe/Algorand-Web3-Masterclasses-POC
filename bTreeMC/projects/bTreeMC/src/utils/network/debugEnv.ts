@@ -12,7 +12,7 @@ export function debugViteEnv() {
   console.log(
     `\n🛠️ [Build-time] VITE_ALGOD_NETWORK=${
       import.meta.env.VITE_ALGOD_NETWORK || '(unset)'
-    } | MODE=${mode} | VERCEL_ENV=${vercelEnv || '(not set)'}\n`
+    } | MODE=${mode} | VERCEL_ENV=${vercelEnv || '(not set)'}\n`,
   )
 
   // ===== Runtime validation policy (preview warns, production optional) =====
@@ -53,7 +53,7 @@ export function debugViteEnv() {
   const mask = (val?: string) => {
     if (!val) return '(empty)'
     if (val.length <= 8) return '********'
-    return val.slice(0, 4) + '…' + val.slice(-4)
+    return `${val.slice(0, 4)}…${val.slice(-4)}`
   }
 
   const envVars = {
